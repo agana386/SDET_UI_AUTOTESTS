@@ -15,18 +15,20 @@ def _resolve_chromedriver() -> str:
     candidates = glob.glob(os.path.join(driver_dir, "chromedriver*"))
     chromedriver_bin = next(
         (p for p in candidates
-         if os.path.isfile(p) and os.access(p, os.X_OK)
-         and not p.endswith((".txt", ".chromedriver", ".NOTICES"))),
+         if os.path.isfile(p)
+         and os.access(p, os.X_OK)
+         and "NOTICES" not in os.path.basename(p)
+         and "LICENSE" not in os.path.basename(p)),
         None,
     )
     if chromedriver_bin is None:
-        raise FileNotFoundError(f"chromedriver not found in {driver_dir}")
+        raise FileNotFoundError(
+            f"chromedriver not found in {driver_dir}. "
+            f"Files: {[os.path.basename(f) for f in candidates]}"
+        )
     return chromedriver_bin
 
 
-# Скачиваем chromedriver один раз в главном процессе до старта workers.
-# pytest-xdist workers наследуют переменные окружения, поэтому путь
-# передаём через CHROMEDRIVER_PATH.
 def pytest_configure(config):
     if not os.environ.get("CHROMEDRIVER_PATH"):
         os.environ["CHROMEDRIVER_PATH"] = _resolve_chromedriver()
@@ -38,6 +40,10 @@ def driver():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1440,900")
+    # Headless только в CI (GitHub Actions автоматически выставляет CI=true)
+    # Локально браузер открывается как обычно
+    if os.environ.get("CI"):
+        options.add_argument("--headless=new")
     service = Service(os.environ["CHROMEDRIVER_PATH"])
     drv = webdriver.Chrome(service=service, options=options)
     drv.implicitly_wait(10)
