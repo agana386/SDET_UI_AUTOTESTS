@@ -37,16 +37,12 @@ jobs:
           name: allure-results
           path: allure-results/
 
-      - name: Generate Allure report
-        if: always()
-        uses: simple-elf/allure-report-action@v1
-        with:
-          allure_results: allure-results
-          allure_report: allure-report
+      # - name: Generate Allure report
+      #   if: always()
+      #   uses: simple-elf/allure-report-action@v1
+      #   with:
+      #     allure_results: allure-results
+      #     allure_report: allure-report
 
-      - name: Publish Allure report to GitHub Pages
-        if: always()
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: allure-report
+    
+    
