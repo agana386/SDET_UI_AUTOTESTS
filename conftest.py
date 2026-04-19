@@ -1,15 +1,19 @@
 import os
+import shutil
 import glob
 import pytest
 import allure
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 from config.constants import BASE_URL
 
 
 def _resolve_chromedriver() -> str:
+    system_driver = shutil.which("chromedriver")
+    if system_driver:
+        return system_driver
+    from webdriver_manager.chrome import ChromeDriverManager
     installed_path = ChromeDriverManager().install()
     driver_dir = os.path.dirname(installed_path)
     candidates = glob.glob(os.path.join(driver_dir, "chromedriver*"))
@@ -40,8 +44,6 @@ def driver():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1440,900")
-    # Headless только в CI (GitHub Actions автоматически выставляет CI=true)
-    # Локально браузер открывается как обычно
     if os.environ.get("CI"):
         options.add_argument("--headless=new")
     service = Service(os.environ["CHROMEDRIVER_PATH"])
