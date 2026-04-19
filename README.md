@@ -44,13 +44,14 @@ SDET_UI_AUTOTESTS/
 | **Page Factory** | Локаторы реализованы как `@property` в `FormPage` — элемент ищется в DOM в момент обращения |
 | **Fluent Interface** | Каждый action-метод возвращает `self`, что позволяет строить цепочки вызовов в тесте |
 
-## Установка и запуск. macOS
+## Установка и запуск
 
 ```bash
 python -m venv venv
 source venv/bin/activate       
 pip install -r requirements.txt
 pytest -v -s
+# Открыть отчет
 allure serve allure-results
 ```
 
