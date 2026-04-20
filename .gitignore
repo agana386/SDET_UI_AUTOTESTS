@@ -10,8 +10,8 @@ env/
 .vscode/
 allure-results/
 allure-report/
+allure-2.27.0/
+allure*.tgz
 .pytest_cache/
 .DS_Store
 Thumbs.db
-allure-2.27.0/
-allure*.tgzallure-2.27.0/
