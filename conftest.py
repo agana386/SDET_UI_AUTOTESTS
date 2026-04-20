@@ -10,9 +10,12 @@ from config.constants import BASE_URL
 
 
 def _resolve_chromedriver() -> str:
+    # В CI (GitHub Actions) chromedriver установлен системно
     system_driver = shutil.which("chromedriver")
     if system_driver:
         return system_driver
+
+    # Локально — ищем через webdriver_manager
     from webdriver_manager.chrome import ChromeDriverManager
     installed_path = ChromeDriverManager().install()
     driver_dir = os.path.dirname(installed_path)
