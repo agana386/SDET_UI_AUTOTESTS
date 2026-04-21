@@ -7,10 +7,25 @@ from pages.search_results_page import SearchResultsPage
 from pages.cart_page import CartPage
 from config.constants import SEARCH_QUERY_SHIRT, BASE_URL
 
-
 @allure.feature("Поиск товаров")
-@allure.story("Поиск, сортировка, корзина")
-@allure.title("TC002: Поиск 'shirt' → сортировка → корзина → Sub-Total")
+@allure.story("Увеличение кол-ва товара в корзине")
+@allure.id("TC-02")
+@allure.title("Поиск 'shirt' → сортировка → корзина → Sub-Total")
+@allure.description("""
+Проверка поискововой выдачи и корзины
+
+Шаги:
+1. Ввести в поисковую строку 'shirt'
+2. Отсортировать результат по наименованию А-Z
+3. Добавить 2 и 3 товар из выдачи в корзину
+4. Указать рандомное количество
+5. Сравнить цены на товары в корзине, выбрать товар наименьшей стоимости
+6. Увеличить количество товара с наименьшей стоимостью в два раза
+7. Сравнить итоговую и ожидаемую стоимость товаров в корзине
+                    
+Ожидаемый результат: Второй и третий товары из выдачи по слову `shirt` находятся в корзине. Первоначальное количество самого дешевого товара увеличено в два раза, итоговая стоимость товаров в корзине пересчитана.
+""")
+
 @allure.severity(allure.severity_level.CRITICAL)
 class TestSearchShirtSorting:
 
