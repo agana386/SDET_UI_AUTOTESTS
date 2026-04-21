@@ -7,12 +7,14 @@ from pages.search_results_page import SearchResultsPage
 from pages.cart_page import CartPage
 from config.constants import SEARCH_QUERY_SHIRT, BASE_URL
 
+
 @allure.feature("Поиск товаров")
 @allure.story("Увеличение кол-ва товара в корзине")
 @allure.id("TC-02")
 @allure.title("Поиск 'shirt' → сортировка → корзина → Sub-Total")
+@allure.severity(allure.severity_level.CRITICAL)
 @allure.description("""
-Проверка поискововой выдачи и корзины
+Проверка поисковой выдачи и корзины
 
 Шаги:
 1. Ввести в поисковую строку 'shirt'
@@ -22,16 +24,15 @@ from config.constants import SEARCH_QUERY_SHIRT, BASE_URL
 5. Сравнить цены на товары в корзине, выбрать товар наименьшей стоимости
 6. Увеличить количество товара с наименьшей стоимостью в два раза
 7. Сравнить итоговую и ожидаемую стоимость товаров в корзине
-                    
-Ожидаемый результат: Второй и третий товары из выдачи по слову `shirt` находятся в корзине. Первоначальное количество самого дешевого товара увеличено в два раза, итоговая стоимость товаров в корзине пересчитана.
-""")
 
-@allure.severity(allure.severity_level.CRITICAL)
+Ожидаемый результат: второй и третий товары из выдачи по слову 'shirt' находятся
+в корзине. Количество самого дешёвого товара увеличено вдвое, итоговая стоимость пересчитана.
+""")
 class TestSearchShirtSorting:
 
     @pytest.fixture(autouse=True)
     def setup(self, driver: webdriver.Chrome):
-        self.driver    = driver
+        self.driver = driver
         self.home_page = HomePage(driver)
         self.driver.get(BASE_URL)
 
@@ -86,7 +87,7 @@ class TestSearchShirtSorting:
             cheapest = cart.get_cheapest_item(items=cart_items)
             self._screenshot("08_cheapest")
 
-        with allure.step(f"Шаг 9: Удвоить «{cheapest['name']}» {cheapest['qty']}→{cheapest['qty']*2}"):
+        with allure.step(f"Шаг 9: Удвоить «{cheapest['name']}» {cheapest['qty']}→{cheapest['qty'] * 2}"):
             updated_item, updated_items = cart.double_qty_of_cheapest(items=cart_items)
             self._attach_text(
                 f"{updated_item['name']}\nqty: {updated_item['qty']}\n${updated_item['total']:.2f}",
@@ -95,7 +96,9 @@ class TestSearchShirtSorting:
 
         with allure.step("Шаг 10: Sub-Total"):
             expected = cart.calculate_expected_subtotal(items=updated_items)
-            actual   = cart.get_subtotal()
+            actual = cart.get_subtotal()
             self._attach_text(f"Ожидалось: ${expected:.2f}\nФактически: ${actual:.2f}", "10_subtotal")
             self._screenshot("10_subtotal")
-            assert abs(actual - expected) < 0.01, f"Sub-Total не совпадает! Ожидалось: ${expected:.2f}, фактически: ${actual:.2f}"
+            assert abs(actual - expected) < 0.01, (
+                f"Sub-Total не совпадает! Ожидалось: ${expected:.2f}, фактически: ${actual:.2f}"
+            )

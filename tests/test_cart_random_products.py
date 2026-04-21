@@ -9,6 +9,7 @@ from config.constants import BASE_URL
 @allure.story("Рандомные товары, удаление четных, проверка суммы")
 @allure.id("TC-03")
 @allure.title("Выбрать 5 рандомных товаров → удалить четные → Sub-Total")
+@allure.severity(allure.severity_level.CRITICAL)
 @allure.description("""
 Проверка корректной работы удаления товароя из корзины и расчета итоговой стоимости                    
 
@@ -24,7 +25,6 @@ from config.constants import BASE_URL
 5 случаных товаров помещены в корзину, 2 и 4 товары в корзине удалены, итоговая сумма рассчитана верно
 """)
 
-@allure.severity(allure.severity_level.CRITICAL)
 class TestCartRandomProducts:
 
     @pytest.fixture(autouse=True)

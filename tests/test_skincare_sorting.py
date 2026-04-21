@@ -9,6 +9,7 @@ from pages.category_page import CategoryPage
 @allure.story("Сортировка в категории")
 @allure.id("TC-01")
 @allure.title("Сортировка товаров в категории (Name A-Z, Z-A, Price Low→High, High→Low)")
+@allure.severity(allure.severity_level.NORMAL)
 @allure.description("""
 Проверка корректной работы сортировки товаров в случайной категории.
 
@@ -23,7 +24,7 @@ from pages.category_page import CategoryPage
 Ожидаемый результат:
 Сортировка корректно применяется по имени и цене в обоих направлениях.
 """)
-@allure.severity(allure.severity_level.NORMAL)
+
 class TestCategorySorting:
 
     @pytest.fixture(autouse=True)
