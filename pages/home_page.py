@@ -61,8 +61,13 @@ class HomePage(BasePage):
                 count = 0
 
             if count >= min_products:
+                real_names = cat_page.get_product_names()
+                if len(real_names) < min_products:
+                    count = len(real_names)
+                    continue
+
                 self.attach_text(
-                    f"Категория: {cat_name}\nPath: {cat_path}\nТоваров: {count}",
+                    f"Категория: {cat_name}\nPath: {cat_path}\nТоваров: {len(real_names)}",
                     "selected_category"
                 )
                 return cat_page, cat_name, cat_path
@@ -71,7 +76,6 @@ class HomePage(BasePage):
 
     @allure.step("Товары главной страницы")
     def get_featured_products(self) -> List[dict]:
-        # В CI страница может грузиться медленно — даём больше времени
         WebDriverWait(self.driver, 30).until(
             EC.presence_of_element_located(self.PRODUCT_NAME_LINK)
         )
