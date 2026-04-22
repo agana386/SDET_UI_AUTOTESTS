@@ -57,9 +57,9 @@ class HomePage(BasePage):
                 count = 0
 
             if count >= min_products:
-                allure.attach(
+                self.attach_text(
                     f"Категория: {cat_name}\nPath: {cat_path}\nТоваров: {count}",
-                    name="selected_category", attachment_type=allure.attachment_type.TEXT,
+                    "selected_category"
                 )
                 return cat_page, cat_name, cat_path
 
@@ -81,8 +81,10 @@ class HomePage(BasePage):
                     products.append({"name": name, "product_url": href})
             except Exception:
                 continue
-        allure.attach(f"Найдено: {len(products)}\n" + "\n".join(p["name"] for p in products),
-                      name="featured_products", attachment_type=allure.attachment_type.TEXT)
+        self.attach_text(
+            f"Найдено: {len(products)}\n" + "\n".join(p["name"] for p in products),
+            "featured_products"
+        )
         return products
 
     @allure.step("Добавить {count} рандомных товаров")
@@ -97,7 +99,8 @@ class HomePage(BasePage):
         all_products = self.get_featured_products()
         if exclude_names:
             all_products = [p for p in all_products if p["name"] not in exclude_names]
-        assert len(all_products) >= count, f"Недостаточно товаров: {len(all_products)} < {count}"
+        if len(all_products) < count:
+            raise ValueError(f"Недостаточно товаров: {len(all_products)} < {count}")
 
         pool, added, idx = random.sample(all_products, len(all_products)), [], 0
         while len(added) < count and idx < len(pool):
@@ -121,6 +124,7 @@ class HomePage(BasePage):
                 if count_after > count_before:
                     added.append({"name": product["name"], "product_url": product["product_url"], "qty": qty})
 
-        assert len(added) == count, f"Добавлено {len(added)} из {count}"
+        if len(added) < count:
+            raise ValueError(f"Не удалось добавить {count} товаров, добавлено: {len(added)}")
         self.open(BASE_URL)
         return added

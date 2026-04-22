@@ -7,18 +7,15 @@ from pages.base_page import BasePage
 
 
 class CategoryPage(BasePage):
-    PRODUCT_NAMES    = (By.CSS_SELECTOR, ".prdocutname")
-    THUMBNAILS       = (By.CSS_SELECTOR, ".thumbnail")
-    SORT_DROPDOWN    = (By.ID, "sort")
+    PRODUCT_LOCATOR = (By.CSS_SELECTOR, ".prdocutname")
+    PRODUCT_NAMES   = PRODUCT_LOCATOR
+    THUMBNAILS      = (By.CSS_SELECTOR, ".thumbnail")
+    SORT_DROPDOWN   = (By.ID, "sort")
 
     SORT_NAME_AZ        = "pd.name-ASC"
     SORT_NAME_ZA        = "pd.name-DESC"
     SORT_PRICE_LOW_HIGH = "p.price-ASC"
     SORT_PRICE_HIGH_LOW = "p.price-DESC"
-
-    def wait_for_products(self):
-        self.wait.until(EC.presence_of_all_elements_located(self.PRODUCT_NAMES))
-        return self
 
     @allure.step("Сортировка: {sort_value}")
     def apply_sort(self, sort_value: str):
@@ -35,8 +32,8 @@ class CategoryPage(BasePage):
 
     @allure.step("Названия товаров")
     def get_product_names(self) -> List[str]:
-        els = self.wait.until(EC.presence_of_all_elements_located(self.PRODUCT_NAMES))
-        return [el.text.strip() for el in els if el.text.strip()]
+        self.wait_for_products()
+        return self.get_element_texts(self.PRODUCT_NAMES)
 
     @allure.step("Цены товаров")
     def get_product_prices(self) -> List[float]:

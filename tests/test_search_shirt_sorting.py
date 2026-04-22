@@ -39,13 +39,19 @@ class TestSearchShirtSorting:
             results.wait_for_products()
 
         with allure.step("Шаг 2: Результаты содержат 'shirt'"):
-            results.assert_results_contain(SEARCH_QUERY_SHIRT)
+            names = results.get_product_names()
+            assert any(SEARCH_QUERY_SHIRT.lower() in n.lower() for n in names), \
+                f"'{SEARCH_QUERY_SHIRT}' не найден в результатах. Список: {names}"
 
         with allure.step("Шаг 3: Сортировка A→Z и проверка порядка"):
             results.sort_by_name_asc()
-            results.assert_sorted_by_name_asc()
             sorted_names = results.get_product_names()
             attach_text("\n".join(sorted_names), "sorted_names")
+            assert sorted_names == sorted(sorted_names, key=str.lower), (
+                f"Сортировка A→Z не работает.\n"
+                f"Получено: {sorted_names}\n"
+                f"Ожидалось: {sorted(sorted_names, key=str.lower)}"
+            )
 
         qty_second = random.randint(2, 10)
         with allure.step(f"Шаг 4: Добавить 2-й товар «{sorted_names[1]}» qty={qty_second}"):

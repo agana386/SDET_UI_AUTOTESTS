@@ -55,10 +55,11 @@ class CartPage(BasePage):
     def get_cheapest_item(self, items: Optional[list] = None) -> dict:
         if items is None:
             items = self.get_cart_items()
-        assert items, "Корзина пуста!"
         cheapest = min(items, key=lambda x: x["unit_price"])
-        allure.attach(f"{cheapest['name']} — ${cheapest['unit_price']:.2f} × {cheapest['qty']}",
-                      name="cheapest", attachment_type=allure.attachment_type.TEXT)
+        self.attach_text(
+            f"{cheapest['name']} — ${cheapest['unit_price']:.2f} × {cheapest['qty']}",
+            "cheapest"
+        )
         return cheapest
 
     @allure.step("Sub-Total")
@@ -72,16 +73,18 @@ class CartPage(BasePage):
         if items is None:
             items = self.get_cart_items()
         subtotal = round(sum(it["unit_price"] * it["qty"] for it in items), 2)
-        allure.attach(
-            "\n".join(f"{it['name']}: ${it['unit_price']:.2f} × {it['qty']} = ${it['unit_price']*it['qty']:.2f}" for it in items)
-            + f"\n{'─'*40}\n${subtotal:.2f}",
-            name="subtotal_breakdown", attachment_type=allure.attachment_type.TEXT,
+        self.attach_text(
+            "\n".join(
+                f"{it['name']}: ${it['unit_price']:.2f} × {it['qty']} = ${it['unit_price'] * it['qty']:.2f}"
+                for it in items
+            ) + f"\n{'─' * 40}\n${subtotal:.2f}",
+            "subtotal_breakdown"
         )
         return subtotal
 
     @allure.step("Обновить qty строки #{row_index} = {new_qty}")
     def set_qty_for_item(self, row_index: int, new_qty: int):
-        rows      = self.driver.find_elements(*self.CART_ROWS)
+        rows = self.driver.find_elements(*self.CART_ROWS)
         qty_input = rows[row_index].find_element(*self.QTY_INPUT)
         self.driver.execute_script("arguments[0].value = '';", qty_input)
         qty_input.click()
@@ -102,28 +105,29 @@ class CartPage(BasePage):
             self.wait_for_cart()
         return self
 
-    @allure.step("Удвоить qty дешёвого")
+    @allure.step("Удвоить qty дешёвого товара")
     def double_qty_of_cheapest(self, items: Optional[list] = None):
         cheapest = self.get_cheapest_item(items)
-        new_qty  = cheapest["qty"] * 2
-        allure.attach(f"{cheapest['name']}: {cheapest['qty']} → {new_qty}",
-                      name="double_qty", attachment_type=allure.attachment_type.TEXT)
+        new_qty = cheapest["qty"] * 2
+        self.attach_text(
+            f"{cheapest['name']}: {cheapest['qty']} → {new_qty}",
+            "double_qty"
+        )
         self.set_qty_for_item(cheapest["row_index"], new_qty)
         updated_items = self.get_cart_items()
         updated = next((it for it in updated_items if it["name"] == cheapest["name"]), None)
-        assert updated, f"'{cheapest['name']}' не найден после обновления"
         return updated, updated_items
 
     @allure.step("Удалить чётные позиции")
     def remove_even_items(self) -> List[dict]:
-        items        = self.get_cart_items()
+        items = self.get_cart_items()
         even_indices = list(range(1, len(items), 2))
-        allure.attach(
-            "Удаляем: " + ", ".join(str(i+1) for i in even_indices)
+        self.attach_text(
+            "Удаляем: " + ", ".join(str(i + 1) for i in even_indices)
             + "\n" + "\n".join(f"  [{i+1}] {items[i]['name']}" for i in even_indices),
-            name="even_items", attachment_type=allure.attachment_type.TEXT,
+            "even_items"
         )
-        rows         = self.driver.find_elements(*self.CART_ROWS)
+        rows = self.driver.find_elements(*self.CART_ROWS)
         product_rows = [r for r in rows if r.find_elements(*self.PRODUCT_NAME)]
         remove_hrefs = [
             product_rows[i].find_element(*self.REMOVE_BTN).get_attribute("href")
@@ -131,5 +135,10 @@ class CartPage(BasePage):
         ]
         for href in remove_hrefs:
             self.driver.get(href)
-            self.wait.until(EC.presence_of_element_located(self.CART_ROWS))
+            try:
+                self.wait.until(EC.presence_of_element_located(self.CART_ROWS))
+            except Exception:
+                self.open_cart()
+
+        self.open_cart()
         return self.get_cart_items()
