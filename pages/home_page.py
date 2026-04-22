@@ -50,7 +50,11 @@ class HomePage(BasePage):
             self.driver.get(url)
             cat_page = CategoryPage(self.driver)
             try:
-                count = len(WebDriverWait(self.driver, 5).until(
+                # Ждём загрузки страницы (document.readyState == complete)
+                WebDriverWait(self.driver, 15).until(
+                    lambda d: d.execute_script("return document.readyState") == "complete"
+                )
+                count = len(WebDriverWait(self.driver, 15).until(
                     EC.presence_of_all_elements_located(cat_page.PRODUCT_NAMES)
                 ))
             except Exception:
@@ -67,7 +71,10 @@ class HomePage(BasePage):
 
     @allure.step("Товары главной страницы")
     def get_featured_products(self) -> List[dict]:
-        self.wait.until(EC.presence_of_element_located(self.PRODUCT_NAME_LINK))
+        # В CI страница может грузиться медленно — даём больше времени
+        WebDriverWait(self.driver, 30).until(
+            EC.presence_of_element_located(self.PRODUCT_NAME_LINK)
+        )
         seen_ids, products = set(), []
         for link in self.driver.find_elements(*self.PRODUCT_NAME_LINK):
             try:
