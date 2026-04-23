@@ -5,9 +5,9 @@ from pages.base_page import BasePage
 
 
 class ProductPage(BasePage):
-    QTY_INPUT   = (By.ID, "product_quantity")
+    QTY_INPUT = (By.ID, "product_quantity")
     ADD_TO_CART = (By.CSS_SELECTOR, "ul.productpagecart a.cart")
-    CART_COUNT  = (By.CSS_SELECTOR, ".nav.topcart .label")
+    CART_COUNT = (By.CSS_SELECTOR, ".nav.topcart .label")
 
     @allure.step("Загрузка страницы товара")
     def wait_for_page(self):

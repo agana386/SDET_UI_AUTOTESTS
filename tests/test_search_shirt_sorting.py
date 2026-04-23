@@ -1,12 +1,29 @@
 import random
 import allure
-import pytest
 from pages.search_results_page import SearchResultsPage
-from config.constants import SEARCH_QUERY_SHIRT, BASE_URL
+from pages.product_page import ProductPage
+from config.constants import SEARCH_QUERY_SHIRT
 
 
-def attach_text(text: str, label: str):
-    allure.attach(text, name=label, attachment_type=allure.attachment_type.TEXT)
+def add_product_to_cart(driver, results: SearchResultsPage, product_index: int, qty: int):
+    """
+    Вспомогательная функция шага теста.
+    Переходит на страницу товара по индексу из результатов поиска,
+    устанавливает количество и добавляет в корзину, затем возвращается
+    на страницу результатов поиска.
+    Взаимодействует с двумя страницами (SearchResultsPage + ProductPage) —
+    поэтому реализована на уровне теста, а не внутри page-класса.
+    """
+    MAX_QTY = 10
+    search_url = results.get_search_url()
+    product_url = results.get_product_url_by_index(product_index)
+    driver.get(product_url)
+    pp = ProductPage(driver)
+    pp.wait_for_page()
+    pp.set_quantity(min(qty, MAX_QTY))
+    pp.click_add_to_cart()
+    driver.get(search_url)
+    results.wait_for_products()
 
 
 @allure.feature("Поиск товаров")
@@ -32,10 +49,9 @@ def attach_text(text: str, label: str):
 class TestSearchShirtSorting:
 
     def test_search_sort_add_to_cart_and_check_total(self, driver, home_page, cart_page):
-        driver.get(BASE_URL)
 
         with allure.step(f"Шаг 1: Поиск '{SEARCH_QUERY_SHIRT}'"):
-            results: SearchResultsPage = home_page.search_for(SEARCH_QUERY_SHIRT)
+            results = home_page.search_for(SEARCH_QUERY_SHIRT)
             results.wait_for_products()
 
         with allure.step("Шаг 2: Результаты содержат 'shirt'"):
@@ -46,7 +62,6 @@ class TestSearchShirtSorting:
         with allure.step("Шаг 3: Сортировка A→Z и проверка порядка"):
             results.sort_by_name_asc()
             sorted_names = results.get_product_names()
-            attach_text("\n".join(sorted_names), "sorted_names")
             assert sorted_names == sorted(sorted_names, key=str.lower), (
                 f"Сортировка A→Z не работает.\n"
                 f"Получено: {sorted_names}\n"
@@ -55,33 +70,26 @@ class TestSearchShirtSorting:
 
         qty_second = random.randint(2, 10)
         with allure.step(f"Шаг 4: Добавить 2-й товар «{sorted_names[1]}» qty={qty_second}"):
-            results.add_to_cart_by_index(product_index=1, qty=qty_second)
+            add_product_to_cart(driver, results, product_index=1, qty=qty_second)
 
         qty_third = random.randint(2, 10)
         with allure.step(f"Шаг 5: Добавить 3-й товар «{sorted_names[2]}» qty={qty_third}"):
-            results.add_to_cart_by_index(product_index=2, qty=qty_third)
+            add_product_to_cart(driver, results, product_index=2, qty=qty_third)
 
         with allure.step("Шаг 6: Открыть корзину"):
             cart_page.open_cart()
             cart_items = cart_page.get_cart_items()
             assert cart_items, "Корзина пуста после добавления товаров!"
-            attach_text(
-                "\n".join(f"{it['name']}: ${it['unit_price']:.2f} × {it['qty']}" for it in cart_items),
-                "cart_contents")
 
         with allure.step("Шаг 7: Найти самый дешёвый товар"):
             cheapest = cart_page.get_cheapest_item(items=cart_items)
 
         with allure.step(f"Шаг 8: Удвоить «{cheapest['name']}» {cheapest['qty']}→{cheapest['qty'] * 2}"):
             updated_item, updated_items = cart_page.double_qty_of_cheapest(items=cart_items)
-            attach_text(
-                f"{updated_item['name']}\nqty: {updated_item['qty']}\n${updated_item['total']:.2f}",
-                "updated_item")
 
         with allure.step("Шаг 9: Проверить Sub-Total"):
             expected = cart_page.calculate_expected_subtotal(items=updated_items)
             actual = cart_page.get_subtotal()
-            attach_text(f"Ожидалось: ${expected:.2f}\nФактически: ${actual:.2f}", "subtotal")
             assert abs(actual - expected) < 0.01, (
                 f"Sub-Total не совпадает! Ожидалось: ${expected:.2f}, фактически: ${actual:.2f}"
             )

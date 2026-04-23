@@ -1,29 +1,13 @@
 import allure
-import pytest
-from pages.cart_page import CartPage
-from config.constants import BASE_URL
-
-
-def items_summary(items: list) -> str:
-    lines = [
-        f"[{i+1}] {it['name']}: ${it['unit_price']:.2f} × {it['qty']} = ${it['unit_price'] * it['qty']:.2f}"
-        for i, it in enumerate(items)
-    ]
-    lines.append(f"{'─' * 50}\nSub-Total: ${sum(it['unit_price'] * it['qty'] for it in items):.2f}")
-    return "\n".join(lines)
-
-
-def attach_text(text: str, label: str):
-    allure.attach(text, name=label, attachment_type=allure.attachment_type.TEXT)
 
 
 @allure.feature("Корзина")
-@allure.story("Рандомные товары, удаление четных, проверка суммы")
+@allure.story("Рандомные товары, удаление чётных, проверка суммы")
 @allure.id("TC-03")
-@allure.title("Выбрать 5 рандомных товаров → удалить четные → Sub-Total")
+@allure.title("Выбрать 5 рандомных товаров → удалить чётные → Sub-Total")
 @allure.severity(allure.severity_level.CRITICAL)
 @allure.description("""
-Проверка корректной работы удаления товаров из корзины и расчета итоговой стоимости.
+Проверка корректной работы удаления товаров из корзины и расчёта итоговой стоимости.
 
 Шаги:
 1. Выбрать на главной странице магазина 5 случайных товаров и добавить в корзину
@@ -41,14 +25,10 @@ class TestCartRandomProducts:
 
         with allure.step("Шаг 1: Добавить 5 рандомных товаров с главной страницы"):
             added = home_page.add_random_products_to_cart(count=5, qty_min=1, qty_max=5)
-            attach_text(
-                "\n".join(f"[{i+1}] {p['name']} qty={p['qty']}" for i, p in enumerate(added)),
-                "01_added")
 
         with allure.step("Шаг 2: Открыть корзину и убедиться, что товаров 5"):
             cart_page.open_cart()
             cart_items = cart_page.get_cart_items()
-            attach_text(items_summary(cart_items), "02_cart_initial")
 
             if len(cart_items) < 5:
                 missing = 5 - len(cart_items)
@@ -60,8 +40,8 @@ class TestCartRandomProducts:
                 cart_page.open_cart()
                 cart_items = cart_page.get_cart_items()
 
-            assert len(cart_items) == 5, f"В корзине {len(cart_items)} товаров, ожидалось 5"
-            attach_text(items_summary(cart_items), "02_cart")
+            assert len(cart_items) == 5, \
+                f"В корзине {len(cart_items)} товаров, ожидалось 5"
 
         with allure.step(f"Шаг 3: Удалить 2-й «{cart_items[1]['name']}» и 4-й «{cart_items[3]['name']}»"):
             remaining_items = cart_page.remove_even_items()
@@ -73,11 +53,9 @@ class TestCartRandomProducts:
             actual_names = {it["name"] for it in remaining_items}
             assert actual_names == expected_names, \
                 f"Остались не те товары!\nОжидалось: {expected_names}\nФактически: {actual_names}"
-            attach_text(items_summary(remaining_items), "04_remaining")
 
         with allure.step("Шаг 5: Проверить Sub-Total"):
             expected = cart_page.calculate_expected_subtotal(items=remaining_items)
             actual = cart_page.get_subtotal()
-            attach_text(f"Ожидалось: ${expected:.2f}\nФактически: ${actual:.2f}", "05_subtotal")
             assert abs(actual - expected) < 0.01, \
                 f"Sub-Total не совпадает! Ожидалось: ${expected:.2f}, фактически: ${actual:.2f}"

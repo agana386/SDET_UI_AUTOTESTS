@@ -8,21 +8,21 @@ from config.constants import CART_URL
 
 
 class CartPage(BasePage):
-    CART_ROWS     = (By.CSS_SELECTOR, "table.table.table-striped.table-bordered tbody tr")
-    PRODUCT_NAME  = (By.CSS_SELECTOR, "td.align_left a")
-    QTY_INPUT     = (By.CSS_SELECTOR, "input.form-control.short")
-    UPDATE_BTN    = (By.ID, "cart_update")
-    REMOVE_BTN    = (By.CSS_SELECTOR, "td.align_center a.btn.btn-sm.btn-default")
+    CART_ROWS = (By.CSS_SELECTOR, "table.table.table-striped.table-bordered tbody tr")
+    PRODUCT_NAME = (By.CSS_SELECTOR, "td.align_left a")
+    QTY_INPUT = (By.CSS_SELECTOR, "input.form-control.short")
+    UPDATE_BTN = (By.ID, "cart_update")
+    REMOVE_BTN = (By.CSS_SELECTOR, "td.align_center a.btn.btn-sm.btn-default")
     SUBTOTAL_SPAN = (By.CSS_SELECTOR, "#totals_table tr:first-child td:last-child span.bold")
 
     @allure.step("Открыть корзину")
     def open_cart(self):
         self.open(CART_URL)
-        self.wait.until(EC.presence_of_element_located(self.CART_ROWS))
+        self.wait_for(self.CART_ROWS)
         return self
 
     def wait_for_cart(self):
-        self.wait.until(EC.presence_of_element_located(self.CART_ROWS))
+        self.wait_for(self.CART_ROWS)
         return self
 
     def _parse_price(self, text: str) -> float:
@@ -31,7 +31,7 @@ class CartPage(BasePage):
     @allure.step("Товары корзины")
     def get_cart_items(self) -> List[dict]:
         items = []
-        for i, row in enumerate(self.driver.find_elements(*self.CART_ROWS)):
+        for i, row in enumerate(self.find_all(self.CART_ROWS)):
             try:
                 name_els = row.find_elements(*self.PRODUCT_NAME)
                 if not name_els:
@@ -45,10 +45,22 @@ class CartPage(BasePage):
                 unit_price = self._parse_price(cells[3].text)
                 qty_inputs = row.find_elements(*self.QTY_INPUT)
                 qty = int(qty_inputs[0].get_attribute("value")) if qty_inputs else 1
-                items.append({"name": name, "unit_price": unit_price, "qty": qty,
-                               "total": round(unit_price * qty, 2), "row_index": i})
+                items.append({
+                    "name": name,
+                    "unit_price": unit_price,
+                    "qty": qty,
+                    "total": round(unit_price * qty, 2),
+                    "row_index": i,
+                })
             except Exception:
                 continue
+        self.attach_text(
+            "\n".join(
+                f"[{i+1}] {it['name']}: ${it['unit_price']:.2f} × {it['qty']}"
+                for i, it in enumerate(items)
+            ),
+            "cart_items"
+        )
         return items
 
     @allure.step("Самый дешёвый товар")
@@ -64,9 +76,7 @@ class CartPage(BasePage):
 
     @allure.step("Sub-Total")
     def get_subtotal(self) -> float:
-        return self._parse_price(
-            self.wait.until(EC.presence_of_element_located(self.SUBTOTAL_SPAN)).text
-        )
+        return self._parse_price(self.wait_for(self.SUBTOTAL_SPAN).text)
 
     @allure.step("Ожидаемый Sub-Total")
     def calculate_expected_subtotal(self, items: Optional[list] = None) -> float:
@@ -84,20 +94,21 @@ class CartPage(BasePage):
 
     @allure.step("Обновить qty строки #{row_index} = {new_qty}")
     def set_qty_for_item(self, row_index: int, new_qty: int):
-        rows = self.driver.find_elements(*self.CART_ROWS)
+        rows = self.find_all(self.CART_ROWS)
         qty_input = rows[row_index].find_element(*self.QTY_INPUT)
         self.driver.execute_script("arguments[0].value = '';", qty_input)
         qty_input.click()
         qty_input.send_keys(str(new_qty))
         try:
-            subtotal_before = self.driver.find_element(*self.SUBTOTAL_SPAN).text
+            subtotal_before = self.find(self.SUBTOTAL_SPAN).text
         except Exception:
             subtotal_before = ""
-        self.wait.until(EC.element_to_be_clickable(self.UPDATE_BTN)).click()
+        self.wait_clickable(self.UPDATE_BTN).click()
         if subtotal_before:
             try:
                 WebDriverWait(self.driver, 5).until(
-                    lambda d: d.find_element(*self.SUBTOTAL_SPAN).text != subtotal_before)
+                    lambda d: d.find_element(*self.SUBTOTAL_SPAN).text != subtotal_before
+                )
             except Exception:
                 self.wait_for_cart()
         else:
@@ -109,10 +120,7 @@ class CartPage(BasePage):
     def double_qty_of_cheapest(self, items: Optional[list] = None):
         cheapest = self.get_cheapest_item(items)
         new_qty = cheapest["qty"] * 2
-        self.attach_text(
-            f"{cheapest['name']}: {cheapest['qty']} → {new_qty}",
-            "double_qty"
-        )
+        self.attach_text(f"{cheapest['name']}: {cheapest['qty']} → {new_qty}", "double_qty")
         self.set_qty_for_item(cheapest["row_index"], new_qty)
         updated_items = self.get_cart_items()
         updated = next((it for it in updated_items if it["name"] == cheapest["name"]), None)
@@ -127,7 +135,7 @@ class CartPage(BasePage):
             + "\n" + "\n".join(f"  [{i+1}] {items[i]['name']}" for i in even_indices),
             "even_items"
         )
-        rows = self.driver.find_elements(*self.CART_ROWS)
+        rows = self.find_all(self.CART_ROWS)
         product_rows = [r for r in rows if r.find_elements(*self.PRODUCT_NAME)]
         remove_hrefs = [
             product_rows[i].find_element(*self.REMOVE_BTN).get_attribute("href")
@@ -136,9 +144,8 @@ class CartPage(BasePage):
         for href in remove_hrefs:
             self.driver.get(href)
             try:
-                self.wait.until(EC.presence_of_element_located(self.CART_ROWS))
+                self.wait_for(self.CART_ROWS)
             except Exception:
                 self.open_cart()
-
         self.open_cart()
         return self.get_cart_items()

@@ -6,25 +6,26 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from pages.base_page import BasePage
 from pages.search_results_page import SearchResultsPage
+from pages.product_page import ProductPage
 from config.constants import BASE_URL, SEARCH_INPUT, SEARCH_BUTTON
 
 CATEGORY_TREE = [
-    ("Apparel & accessories", "68", [("Shoes","68_69"), ("T-shirts","68_70")]),
-    ("Makeup", "36", [("Cheeks","36_40"), ("Eyes","36_39"), ("Face","36_38"),
-                      ("Lips","36_41"), ("Nails","36_42"), ("Value Sets","36_37")]),
-    ("Skincare", "43", [("Eyes","43_47"), ("Face","43_46"), ("Gift Ideas & Sets","43_45"),
-                        ("Hands & Nails","43_48"), ("Sun","43_44")]),
-    ("Fragrance", "49", [("Men","49_51"), ("Women","49_50")]),
-    ("Men", "58", [("Body & Shower","58_63"), ("Fragrance Sets","58_59"),
-                   ("Pre-Shave & Shaving","58_61"), ("Skincare","58_60")]),
-    ("Hair Care", "52", [("Conditioner","52_54"), ("Shampoo","52_53")]),
-    ("Books", "65", [("Audio CD","65_66"), ("Paperback","65_67")]),
+    ("Apparel & accessories", "68", [("Shoes", "68_69"), ("T-shirts", "68_70")]),
+    ("Makeup", "36", [("Cheeks", "36_40"), ("Eyes", "36_39"), ("Face", "36_38"),
+                      ("Lips", "36_41"), ("Nails", "36_42"), ("Value Sets", "36_37")]),
+    ("Skincare", "43", [("Eyes", "43_47"), ("Face", "43_46"), ("Gift Ideas & Sets", "43_45"),
+                        ("Hands & Nails", "43_48"), ("Sun", "43_44")]),
+    ("Fragrance", "49", [("Men", "49_51"), ("Women", "49_50")]),
+    ("Men", "58", [("Body & Shower", "58_63"), ("Fragrance Sets", "58_59"),
+                   ("Pre-Shave & Shaving", "58_61"), ("Skincare", "58_60")]),
+    ("Hair Care", "52", [("Conditioner", "52_54"), ("Shampoo", "52_53")]),
+    ("Books", "65", [("Audio CD", "65_66"), ("Paperback", "65_67")]),
 ]
 
 
 class HomePage(BasePage):
     PRODUCT_NAME_LINK = (By.CSS_SELECTOR, "a.prdocutname")
-    CART_COUNT        = (By.CSS_SELECTOR, ".nav.topcart .label")
+    CART_COUNT = (By.CSS_SELECTOR, ".nav.topcart .label")
 
     @allure.step("Поиск: {query}")
     def search_for(self, query: str) -> SearchResultsPage:
@@ -35,47 +36,66 @@ class HomePage(BasePage):
         return SearchResultsPage(self.driver)
 
     @allure.step("Случайная категория с ≥{min_products} товарами")
-    def navigate_to_random_category(self, min_products: int = 4):
-        from pages.category_page import CategoryPage
+    def navigate_to_random_category(self, category_page, min_products: int = 4) -> str:
+        """
+        Перебирает все категории и подкатегории сайта в случайном порядке.
+        Открывает первую категорию где найдено ≥ min_products товаров.
 
-        all_cats = []
-        for parent_name, parent_path, subcats in CATEGORY_TREE:
-            for sub_name, sub_path in subcats:
-                all_cats.append((f"{parent_name} → {sub_name}", sub_path))
-            all_cats.append((parent_name, parent_path))
-        random.shuffle(all_cats)
+        Алгоритм:
+          1. Строит плоский список всех категорий из CATEGORY_TREE и перемешивает.
+          2. Для каждой категории открывает страницу и ждёт загрузки DOM.
+          3. Считает товары быстрым ожиданием (15 сек), затем перепроверяет
+             через get_product_names() для надёжности (защита от race condition в CI).
+          4. Навигирует переданный category_page на найденную категорию.
+
+        Args:
+            category_page: объект CategoryPage из фикстуры
+            min_products: минимальное количество товаров в категории
+        Returns:
+            str: название выбранной категории
+        Raises:
+            AssertionError: если ни одна категория не содержит ≥ min_products товаров.
+        """
+        with allure.step("Собрать и перемешать список категорий"):
+            all_cats = []
+            for parent_name, parent_path, subcats in CATEGORY_TREE:
+                for sub_name, sub_path in subcats:
+                    all_cats.append((f"{parent_name} → {sub_name}", sub_path))
+                all_cats.append((parent_name, parent_path))
+            random.shuffle(all_cats)
 
         for cat_name, cat_path in all_cats:
-            url = f"{BASE_URL}index.php?rt=product/category&path={cat_path}"
-            self.driver.get(url)
-            cat_page = CategoryPage(self.driver)
-            try:
-                # Ждём загрузки страницы (document.readyState == complete)
-                WebDriverWait(self.driver, 15).until(
-                    lambda d: d.execute_script("return document.readyState") == "complete"
-                )
-                count = len(WebDriverWait(self.driver, 15).until(
-                    EC.presence_of_all_elements_located(cat_page.PRODUCT_NAMES)
-                ))
-            except Exception:
-                count = 0
+            with allure.step(f"Проверить категорию: {cat_name}"):
+                url = f"{BASE_URL}index.php?rt=product/category&path={cat_path}"
+                self.driver.get(url)
+                try:
+                    WebDriverWait(self.driver, 15).until(
+                        lambda d: d.execute_script("return document.readyState") == "complete"
+                    )
+                    count = len(WebDriverWait(self.driver, 15).until(
+                        EC.presence_of_all_elements_located(category_page.PRODUCT_NAMES)
+                    ))
+                except Exception:
+                    count = 0
 
-            if count >= min_products:
-                real_names = cat_page.get_product_names()
+                if count < min_products:
+                    continue
+
+                real_names = category_page.get_product_names()
                 if len(real_names) < min_products:
-                    count = len(real_names)
                     continue
 
                 self.attach_text(
                     f"Категория: {cat_name}\nPath: {cat_path}\nТоваров: {len(real_names)}",
                     "selected_category"
                 )
-                return cat_page, cat_name, cat_path
+                return cat_name
 
         raise AssertionError(f"Нет ни одной категории с ≥{min_products} товарами")
 
     @allure.step("Товары главной страницы")
     def get_featured_products(self) -> List[dict]:
+        # В CI страница может грузиться медленно — даём больше времени
         WebDriverWait(self.driver, 30).until(
             EC.presence_of_element_located(self.PRODUCT_NAME_LINK)
         )
@@ -106,16 +126,18 @@ class HomePage(BasePage):
         qty_max: int = 5,
         exclude_names: Optional[set] = None,
     ) -> List[dict]:
-        from pages.product_page import ProductPage
         all_products = self.get_featured_products()
         if exclude_names:
             all_products = [p for p in all_products if p["name"] not in exclude_names]
         if len(all_products) < count:
             raise ValueError(f"Недостаточно товаров: {len(all_products)} < {count}")
 
-        pool, added, idx = random.sample(all_products, len(all_products)), [], 0
+        pool = random.sample(all_products, len(all_products))
+        added = []
+        idx = 0
         while len(added) < count and idx < len(pool):
-            product = pool[idx]; idx += 1
+            product = pool[idx]
+            idx += 1
             qty = random.randint(qty_min, qty_max)
             try:
                 count_before = int(self.driver.find_element(*self.CART_COUNT).text.strip())
