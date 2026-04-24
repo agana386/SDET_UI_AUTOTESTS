@@ -8,10 +8,6 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from config.constants import BASE_URL
-from pages.home_page import HomePage
-from pages.category_page import CategoryPage
-from pages.product_page import ProductPage
-from pages.cart_page import CartPage
  
  
 def _resolve_chromedriver() -> str:
@@ -38,7 +34,6 @@ def pytest_configure(config):
     if not os.environ.get("CHROMEDRIVER_PATH"):
         os.environ["CHROMEDRIVER_PATH"] = _resolve_chromedriver()
  
-
  
 @pytest.fixture(scope="function")
 def driver(request):
@@ -63,7 +58,6 @@ def driver(request):
  
     yield drv
  
-    # Скриншот только при падении теста
     if request.node.rep_call.failed if hasattr(request.node, "rep_call") else False:
         allure.attach(
             drv.get_screenshot_as_png(),
@@ -79,22 +73,3 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     rep = outcome.get_result()
     setattr(item, f"rep_{rep.when}", rep)
- 
- 
-@pytest.fixture
-def home_page(driver):
-    return HomePage(driver)
- 
- 
-@pytest.fixture
-def cart_page(driver):
-    return CartPage(driver)
- 
-@pytest.fixture
-def category_page(driver):
-    return CategoryPage(driver)
- 
-
-@pytest.fixture
-def product_page(driver):
-    return ProductPage(driver)
