@@ -1,10 +1,9 @@
 import random
 import allure
-import pytest
 from pages.search_results_page import SearchResultsPage
-from config.constants import SEARCH_QUERY_SHIRT, BASE_URL
- 
- 
+from pages.product_page import ProductPage
+
+
 def add_product_to_cart(
     driver, results: SearchResultsPage, product_page, product_index: int, qty: int
 ):
@@ -25,18 +24,18 @@ def add_product_to_cart(
     product_page.click_add_to_cart()
     driver.get(search_url)
     results.wait_for_products()
- 
- 
+
+
 @allure.feature("Поиск товаров")
 @allure.story("Увеличение кол-ва товара в корзине")
 class TestSearchShirtSorting:
- 
+
     @allure.id("TC-02")
-    @allure.title("Поиск 'shirt' – сортировка – корзина – Sub-Total")
+    @allure.title("Поиск 'shirt' → сортировка → корзина → Sub-Total")
     @allure.severity(allure.severity_level.CRITICAL)
     @allure.description("""
 Проверка поисковой выдачи и корзины.
- 
+
 Шаги:
 1. Ввести в поисковую строку 'shirt'
 2. Отсортировать результат по наименованию А-Z
@@ -44,22 +43,23 @@ class TestSearchShirtSorting:
 4. Сравнить цены на товары в корзине, выбрать товар наименьшей стоимости
 5. Увеличить количество товара с наименьшей стоимостью в два раза
 6. Сравнить итоговую и ожидаемую стоимость товаров в корзине
- 
+
 Ожидаемый результат:
 Второй и третий товары из выдачи по слову 'shirt' находятся в корзине.
 Количество самого дешёвого товара увеличено вдвое, итоговая стоимость пересчитана.
     """)
     def test_search_sort_add_to_cart_and_check_total(self, driver, home_page, cart_page, product_page):
- 
-        with allure.step(f"Шаг 1: Поиск '{SEARCH_QUERY_SHIRT}'"):
-            results = home_page.search_for(SEARCH_QUERY_SHIRT)
+
+        with allure.step(f"Шаг 1: Поиск '{home_page.SEARCH_QUERY_SHIRT}'"):
+            results = home_page.search_for(home_page.SEARCH_QUERY_SHIRT)
             results.wait_for_products()
- 
+
         with allure.step("Шаг 2: Результаты содержат 'shirt'"):
             names = results.get_product_names()
-            assert any(SEARCH_QUERY_SHIRT.lower() in n.lower() for n in names), \
-                f"'{SEARCH_QUERY_SHIRT}' не найден в результатах. Список: {names}"
- 
+            query = home_page.SEARCH_QUERY_SHIRT
+            assert any(query.lower() in n.lower() for n in names), \
+                f"'{query}' не найден в результатах. Список: {names}"
+
         with allure.step("Шаг 3: Сортировка A→Z и проверка порядка"):
             results.sort_by_name_asc()
             sorted_names = results.get_product_names()
@@ -68,26 +68,26 @@ class TestSearchShirtSorting:
                 f"Получено: {sorted_names}\n"
                 f"Ожидалось: {sorted(sorted_names, key=str.lower)}"
             )
- 
+
         qty_second = random.randint(2, 10)
         with allure.step(f"Шаг 4: Добавить 2-й товар «{sorted_names[1]}» qty={qty_second}"):
             add_product_to_cart(driver, results, product_page, product_index=1, qty=qty_second)
- 
+
         qty_third = random.randint(2, 10)
         with allure.step(f"Шаг 5: Добавить 3-й товар «{sorted_names[2]}» qty={qty_third}"):
             add_product_to_cart(driver, results, product_page, product_index=2, qty=qty_third)
- 
+
         with allure.step("Шаг 6: Открыть корзину"):
             cart_page.open_cart()
             cart_items = cart_page.get_cart_items()
             assert cart_items, "Корзина пуста после добавления товаров!"
- 
-        with allure.step("Шаг 7: Найти самый дешевый товар"):
+
+        with allure.step("Шаг 7: Найти самый дешёвый товар"):
             cheapest = cart_page.get_cheapest_item(items=cart_items)
- 
+
         with allure.step(f"Шаг 8: Удвоить «{cheapest['name']}» {cheapest['qty']}→{cheapest['qty'] * 2}"):
             updated_item, updated_items = cart_page.double_qty_of_cheapest(items=cart_items)
- 
+
         with allure.step("Шаг 9: Проверить Sub-Total"):
             expected = cart_page.calculate_expected_subtotal(items=updated_items)
             actual = cart_page.get_subtotal()

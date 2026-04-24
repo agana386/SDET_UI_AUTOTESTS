@@ -7,8 +7,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from pages.base_page import BasePage
 from pages.search_results_page import SearchResultsPage
 from pages.product_page import ProductPage
-from config.constants import BASE_URL, SEARCH_INPUT, SEARCH_BUTTON
-
+from config.constants import BASE_URL
+ 
 CATEGORY_TREE = [
     ("Apparel & accessories", "68", [("Shoes", "68_69"), ("T-shirts", "68_70")]),
     ("Makeup", "36", [("Cheeks", "36_40"), ("Eyes", "36_39"), ("Face", "36_38"),
@@ -21,33 +21,36 @@ CATEGORY_TREE = [
     ("Hair Care", "52", [("Conditioner", "52_54"), ("Shampoo", "52_53")]),
     ("Books", "65", [("Audio CD", "65_66"), ("Paperback", "65_67")]),
 ]
-
-
+ 
+ 
 class HomePage(BasePage):
     PRODUCT_NAME_LINK = (By.CSS_SELECTOR, "a.prdocutname")
     CART_COUNT = (By.CSS_SELECTOR, ".nav.topcart .label")
-
+    SEARCH_INPUT = (By.ID, "filter_keyword")
+    SEARCH_BUTTON = (By.CSS_SELECTOR, ".button-in-search")
+    SEARCH_QUERY_SHIRT = "shirt"
+ 
     @allure.step("Поиск: {query}")
     def search_for(self, query: str) -> SearchResultsPage:
-        field = self.wait.until(EC.visibility_of_element_located(SEARCH_INPUT))
+        field = self.wait_visible(self.SEARCH_INPUT)
         field.clear()
         field.send_keys(query)
-        self.wait.until(EC.element_to_be_clickable(SEARCH_BUTTON)).click()
+        self.wait_clickable(self.SEARCH_BUTTON).click()
         return SearchResultsPage(self.driver)
-
+ 
     @allure.step("Случайная категория с ≥{min_products} товарами")
     def navigate_to_random_category(self, category_page, min_products: int = 4) -> str:
         """
         Перебирает все категории и подкатегории сайта в случайном порядке.
         Открывает первую категорию где найдено ≥ min_products товаров.
-
+ 
         Алгоритм:
           1. Строит плоский список всех категорий из CATEGORY_TREE и перемешивает.
           2. Для каждой категории открывает страницу и ждёт загрузки DOM.
           3. Считает товары быстрым ожиданием (15 сек), затем перепроверяет
              через get_product_names() для надёжности (защита от race condition в CI).
           4. Навигирует переданный category_page на найденную категорию.
-
+ 
         Args:
             category_page: объект CategoryPage из фикстуры
             min_products: минимальное количество товаров в категории
@@ -63,7 +66,7 @@ class HomePage(BasePage):
                     all_cats.append((f"{parent_name} → {sub_name}", sub_path))
                 all_cats.append((parent_name, parent_path))
             random.shuffle(all_cats)
-
+ 
         for cat_name, cat_path in all_cats:
             with allure.step(f"Проверить категорию: {cat_name}"):
                 url = f"{BASE_URL}index.php?rt=product/category&path={cat_path}"
@@ -77,22 +80,22 @@ class HomePage(BasePage):
                     ))
                 except Exception:
                     count = 0
-
+ 
                 if count < min_products:
                     continue
-
+ 
                 real_names = category_page.get_product_names()
                 if len(real_names) < min_products:
                     continue
-
+ 
                 self.attach_text(
                     f"Категория: {cat_name}\nPath: {cat_path}\nТоваров: {len(real_names)}",
                     "selected_category"
                 )
                 return cat_name
-
+ 
         raise AssertionError(f"Нет ни одной категории с ≥{min_products} товарами")
-
+ 
     @allure.step("Товары главной страницы")
     def get_featured_products(self) -> List[dict]:
         # В CI страница может грузиться медленно — даём больше времени
@@ -117,7 +120,7 @@ class HomePage(BasePage):
             "featured_products"
         )
         return products
-
+ 
     @allure.step("Добавить {count} рандомных товаров")
     def add_random_products_to_cart(
         self,
@@ -131,7 +134,7 @@ class HomePage(BasePage):
             all_products = [p for p in all_products if p["name"] not in exclude_names]
         if len(all_products) < count:
             raise ValueError(f"Недостаточно товаров: {len(all_products)} < {count}")
-
+ 
         pool = random.sample(all_products, len(all_products))
         added = []
         idx = 0
@@ -143,7 +146,7 @@ class HomePage(BasePage):
                 count_before = int(self.driver.find_element(*self.CART_COUNT).text.strip())
             except Exception:
                 count_before = len(added)
-
+ 
             with allure.step(f"Добавить «{product['name']}» qty={qty}"):
                 self.driver.get(product["product_url"])
                 pp = ProductPage(self.driver)
@@ -156,7 +159,7 @@ class HomePage(BasePage):
                     count_after = count_before
                 if count_after > count_before:
                     added.append({"name": product["name"], "product_url": product["product_url"], "qty": qty})
-
+ 
         if len(added) < count:
             raise ValueError(f"Не удалось добавить {count} товаров, добавлено: {len(added)}")
         self.open(BASE_URL)
