@@ -6,7 +6,6 @@ from selenium.webdriver.support import expected_conditions as EC
 
 
 class BasePage:
-    # Дочерние классы переопределяют этот атрибут своим локатором
     PRODUCT_LOCATOR: Optional[Tuple] = None
 
     def __init__(self, driver: webdriver.Chrome, timeout: int = 10):
